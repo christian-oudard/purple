@@ -1,14 +1,31 @@
 function maxIntensity(lightness, hue) {
-    var intensity = 0;
-    var previousIntensity, lch;
-    while (true) {
-        previousIntensity = intensity;
-        intensity += 1;
-        lch = chroma.lch(lightness, intensity, hue).lch();
-        if (lch[1] < previousIntensity) {
-            return chroma.lch(lightness, previousIntensity, hue);
+
+    hue = (hue + 360) % 360;
+
+    var inGamut = function(l, c, h) {
+        // Check for divergence of the color during a round-trip conversion.
+        var err = 0.1;
+        var lch = chroma.lch(l, c, h).lch();
+        return (
+            Math.abs(lch[0] - l) < err &&
+            Math.abs(lch[1] - c) < err &&
+            Math.abs(lch[2] - h) < err
+        );
+    };
+
+    var search = function(lo, hi) {
+        var mid = (lo + hi) / 2;
+        if ( (hi - lo) < 0.1 ) {
+            return mid;
+        }
+        if ( inGamut(lightness, mid, hue) ) {
+            return search(mid, hi);
+        } else {
+            return search(lo, mid);
         }
     }
+
+    return chroma.lch(lightness, search(0, 100), hue);
 }
 
 var maxViolet = 320.0612958158414;
@@ -19,7 +36,7 @@ var yellowGreenHue = purpleHue - 180
 var hue = purpleHue;
 var startLightness = 30;
 var endLightness = 55;
-var oppositeHue = hue + 180;
+var oppositeHue = (hue + 180) % 360;
 var startBg = maxIntensity(startLightness, hue);
 var startFg = maxIntensity(startLightness, oppositeHue);
 var endBg = maxIntensity(endLightness, oppositeHue);
